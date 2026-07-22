@@ -8,6 +8,7 @@ package com.gzq.okhttpdebugkit
 class OkHttpDebugConfig private constructor(
     val enabled: Boolean,
     val serverUrl: String,
+    val serverUrls: List<String>,
     val token: String?,
     val sessionId: String,
     val maxBodyBytes: Long,
@@ -24,6 +25,7 @@ class OkHttpDebugConfig private constructor(
     class Builder {
         private var enabled: Boolean = true
         private var serverUrl: String = DEFAULT_SERVER_URL
+        private var serverUrls: List<String> = listOf(DEFAULT_SERVER_URL)
         private var token: String? = null
         private var sessionId: String = java.util.UUID.randomUUID().toString()
         private var maxBodyBytes: Long = DEFAULT_MAX_BODY_BYTES
@@ -40,6 +42,7 @@ class OkHttpDebugConfig private constructor(
         internal constructor(config: OkHttpDebugConfig) {
             enabled = config.enabled
             serverUrl = config.serverUrl
+            serverUrls = config.serverUrls
             token = config.token
             sessionId = config.sessionId
             maxBodyBytes = config.maxBodyBytes
@@ -54,7 +57,16 @@ class OkHttpDebugConfig private constructor(
 
         fun enabled(value: Boolean) = apply { enabled = value }
 
-        fun serverUrl(value: String) = apply { serverUrl = value }
+        fun serverUrl(value: String) = apply {
+            serverUrl = value
+            serverUrls = listOf(value)
+        }
+
+        fun serverUrls(value: List<String>) = apply {
+            require(value.isNotEmpty()) { "serverUrls must not be empty" }
+            serverUrls = value
+            serverUrl = value.first()
+        }
 
         fun token(value: String?) = apply { token = value?.takeIf { it.isNotBlank() } }
 
@@ -96,12 +108,15 @@ class OkHttpDebugConfig private constructor(
         fun staticTags(value: Map<String, String>) = apply { staticTags = value.toMap() }
 
         fun build(): OkHttpDebugConfig {
-            require(serverUrl.startsWith("ws://") || serverUrl.startsWith("wss://")) {
-                "serverUrl must start with ws:// or wss://"
+            val normalizedServerUrls = serverUrls.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            require(normalizedServerUrls.isNotEmpty()) { "serverUrls must not be empty" }
+            require(normalizedServerUrls.all { it.startsWith("ws://") || it.startsWith("wss://") }) {
+                "serverUrls must start with ws:// or wss://"
             }
             return OkHttpDebugConfig(
                 enabled = enabled,
-                serverUrl = serverUrl,
+                serverUrl = normalizedServerUrls.first(),
+                serverUrls = normalizedServerUrls,
                 token = token,
                 sessionId = sessionId,
                 maxBodyBytes = maxBodyBytes,
@@ -118,6 +133,9 @@ class OkHttpDebugConfig private constructor(
 
     companion object {
         const val DEFAULT_SERVER_URL: String = "ws://127.0.0.1:19090/session"
+        val DEFAULT_SERVER_URLS: List<String> = (19090..19109).map { port ->
+            "ws://127.0.0.1:$port/session"
+        }
         const val DEFAULT_MAX_BODY_BYTES: Long = 1024L * 1024L
         const val DEFAULT_QUEUE_CAPACITY: Int = 200
         const val DEFAULT_RECONNECT_INITIAL_DELAY_MS: Long = 1_000L

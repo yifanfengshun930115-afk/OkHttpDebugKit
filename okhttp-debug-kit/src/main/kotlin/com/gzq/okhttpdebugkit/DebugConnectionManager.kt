@@ -49,6 +49,9 @@ class DebugConnectionManager @JvmOverloads constructor(
     private var reconnectAttempt = 0
 
     @Volatile
+    private var endpointIndex = 0
+
+    @Volatile
     var droppedMessageCount: Long = 0
         private set
 
@@ -118,7 +121,7 @@ class DebugConnectionManager @JvmOverloads constructor(
             }
             connecting = true
             Request.Builder()
-                .url(endpointWithToken(config.serverUrl, config.token))
+                .url(endpointWithToken(nextEndpointLocked(), config.token))
                 .build()
         }
         client.newWebSocket(request, Listener())
@@ -130,6 +133,7 @@ class DebugConnectionManager @JvmOverloads constructor(
             socket = webSocket
             connecting = false
             reconnectAttempt = 0
+            endpointIndex = 0
             helloMessage?.let { pending += DebugJsonProtocol.helloToJson(it) }
             while (queue.isNotEmpty()) {
                 pending += queue.removeFirst()
@@ -181,6 +185,13 @@ class DebugConnectionManager @JvmOverloads constructor(
         queue.addLast(rawJson)
     }
 
+    private fun nextEndpointLocked(): String {
+        val endpoints = config.serverUrls.ifEmpty { listOf(config.serverUrl) }
+        val endpoint = endpoints[endpointIndex % endpoints.size]
+        endpointIndex = (endpointIndex + 1) % endpoints.size
+        return endpoint
+    }
+
     private fun executeSafely(block: () -> Unit) {
         runCatching {
             executor.execute {
@@ -213,4 +224,3 @@ private fun endpointWithToken(serverUrl: String, token: String?): String {
     val encodedToken = URLEncoder.encode(nonBlankToken, "UTF-8")
     return "$serverUrl${separator}token=$encodedToken"
 }
-
