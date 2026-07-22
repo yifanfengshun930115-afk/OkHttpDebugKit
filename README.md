@@ -21,5 +21,15 @@ Default body limit is 1 MiB. Text, JSON, XML, and `application/x-www-form-urlenc
 - `OkHttpDebugEventListener`
 - `OkHttpClient.Builder.debugWithOkHttpDebugKit(...)`
 
-See [docs/INTEGRATION.md](docs/INTEGRATION.md) for OneNews integration notes.
+## Artifacts
 
+Build the real debug AAR and release-safe no-op AAR with:
+
+```bash
+./gradlew :okhttp-debug-kit:assembleRelease :okhttp-debug-kit-noop:assembleRelease
+```
+
+Use the real artifact for debug/internal diagnostic variants and the no-op
+artifact for production release variants.
+
+See [docs/INTEGRATION.md](docs/INTEGRATION.md) for OneNews integration notes.

@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "OkHttpDebugKit"
 include(":okhttp-debug-kit")
-
+include(":okhttp-debug-kit-noop")

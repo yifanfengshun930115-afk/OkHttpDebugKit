@@ -4,17 +4,26 @@ This SDK is intended for debug builds only. Do not put real service tokens in sa
 
 ## Gradle
 
-Add the library only to debug variants:
+Build and copy both AARs into the app's `libs/` directory:
 
-```kotlin
+```bash
+./gradlew :okhttp-debug-kit:assembleRelease :okhttp-debug-kit-noop:assembleRelease
+```
+
+Recommended variant dependencies:
+
+```groovy
 dependencies {
-    debugImplementation(project(":okhttp-debug-kit"))
+    debugImplementation(files("$rootDir/libs/okhttp-debug-kit-debug.aar"))
+    logReleaseImplementation(files("$rootDir/libs/okhttp-debug-kit-debug.aar"))
+    releaseImplementation(files("$rootDir/libs/okhttp-debug-kit-noop.aar"))
 }
 ```
 
-If the same production source file must call a helper, create a debug bridge plus a release no-op bridge in the app so release variants do not depend on the SDK.
+The no-op AAR keeps the same public API but does not open WebSockets, add
+interceptors, enqueue captures, or read request/response bodies.
 
-Debug bridge example:
+Shared bridge example:
 
 ```kotlin
 package com.bulletin.debug
@@ -46,28 +55,6 @@ object OneNewsOkHttpDebug {
     ): OkHttpClient.Builder {
         return builder.debugWithOkHttpDebugKit(context, config, delegateEventListenerFactory)
     }
-}
-```
-
-Release no-op bridge example:
-
-```kotlin
-package com.bulletin.debug
-
-import android.content.Context
-import okhttp3.EventListener
-import okhttp3.OkHttpClient
-
-object OneNewsOkHttpDebug {
-    fun install(context: Context) = Unit
-
-    @JvmStatic
-    @JvmOverloads
-    fun apply(
-        builder: OkHttpClient.Builder,
-        context: Context,
-        delegateEventListenerFactory: EventListener.Factory? = null,
-    ): OkHttpClient.Builder = builder
 }
 ```
 
