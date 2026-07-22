@@ -15,6 +15,7 @@ class OkHttpDebugConfig private constructor(
     val reconnectInitialDelayMs: Long,
     val reconnectMaxDelayMs: Long,
     val redactHeaders: Set<String>,
+    val redactQueryParams: Set<String>,
     val includeStackTrace: Boolean,
     val staticTags: Map<String, String>,
 ) {
@@ -30,6 +31,7 @@ class OkHttpDebugConfig private constructor(
         private var reconnectInitialDelayMs: Long = DEFAULT_RECONNECT_INITIAL_DELAY_MS
         private var reconnectMaxDelayMs: Long = DEFAULT_RECONNECT_MAX_DELAY_MS
         private var redactHeaders: Set<String> = DEFAULT_REDACT_HEADERS
+        private var redactQueryParams: Set<String> = DEFAULT_REDACT_QUERY_PARAMS
         private var includeStackTrace: Boolean = false
         private var staticTags: Map<String, String> = emptyMap()
 
@@ -45,6 +47,7 @@ class OkHttpDebugConfig private constructor(
             reconnectInitialDelayMs = config.reconnectInitialDelayMs
             reconnectMaxDelayMs = config.reconnectMaxDelayMs
             redactHeaders = config.redactHeaders
+            redactQueryParams = config.redactQueryParams
             includeStackTrace = config.includeStackTrace
             staticTags = config.staticTags
         }
@@ -84,6 +87,10 @@ class OkHttpDebugConfig private constructor(
             redactHeaders = value.map { it.lowercase() }.toSet()
         }
 
+        fun redactQueryParams(value: Set<String>) = apply {
+            redactQueryParams = value.map { it.lowercase() }.toSet()
+        }
+
         fun includeStackTrace(value: Boolean) = apply { includeStackTrace = value }
 
         fun staticTags(value: Map<String, String>) = apply { staticTags = value.toMap() }
@@ -102,6 +109,7 @@ class OkHttpDebugConfig private constructor(
                 reconnectInitialDelayMs = reconnectInitialDelayMs,
                 reconnectMaxDelayMs = maxOf(reconnectInitialDelayMs, reconnectMaxDelayMs),
                 redactHeaders = redactHeaders,
+                redactQueryParams = redactQueryParams,
                 includeStackTrace = includeStackTrace,
                 staticTags = staticTags,
             )
@@ -124,6 +132,15 @@ class OkHttpDebugConfig private constructor(
             "x-auth-token",
         )
 
+        val DEFAULT_REDACT_QUERY_PARAMS: Set<String> = setOf(
+            "access_token",
+            "api_key",
+            "apikey",
+            "auth",
+            "key",
+            "token",
+        )
+
         @JvmStatic
         fun builder(): Builder = Builder()
 
@@ -131,4 +148,3 @@ class OkHttpDebugConfig private constructor(
         fun defaults(): OkHttpDebugConfig = Builder().build()
     }
 }
-
