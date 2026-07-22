@@ -29,7 +29,7 @@ android {
 }
 
 dependencies {
-    api("com.squareup.okhttp3:okhttp:4.12.0")
+    api("com.squareup.okhttp3:okhttp:5.1.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20231013")
 }
