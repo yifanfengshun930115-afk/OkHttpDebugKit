@@ -98,7 +98,12 @@ internal object BodyCapture {
             val text = peeked.string()
             CapturedBody(
                 body = text,
-                bodyTruncated = contentLength != null && contentLength > maxBodyBytes,
+                bodyTruncated = when {
+                    contentLength != null -> contentLength > maxBodyBytes
+                    maxBodyBytes == 0L -> false
+                    text.toByteArray(textContentType.charsetOrUtf8()).size >= maxBodyBytes -> true
+                    else -> false
+                },
                 contentType = textContentType.toString(),
                 contentLength = contentLength,
             )
