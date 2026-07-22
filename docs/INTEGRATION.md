@@ -29,6 +29,7 @@ Shared bridge example:
 package com.bulletin.debug
 
 import android.content.Context
+import com.gzq.okhttpdebugkit.OkHttpDebugCaptureMode
 import com.gzq.okhttpdebugkit.OkHttpDebugConfig
 import com.gzq.okhttpdebugkit.OkHttpDebugKit
 import com.gzq.okhttpdebugkit.debugWithOkHttpDebugKit
@@ -39,6 +40,7 @@ object OneNewsOkHttpDebug {
     private val config: OkHttpDebugConfig = OkHttpDebugConfig.builder()
         .serverUrl("ws://127.0.0.1:19090/session")
         .token("demo-token")
+        .captureMode(OkHttpDebugCaptureMode.APPLICATION)
         .staticTags(mapOf("source" to "OneNews"))
         .build()
 
@@ -59,6 +61,8 @@ object OneNewsOkHttpDebug {
 ```
 
 Call `OneNewsOkHttpDebug.install(appContext)` from debug app startup before creating clients.
+
+Use `OkHttpDebugCaptureMode.APPLICATION` for ordinary clients. For clients that encrypt/decrypt inside OkHttp interceptors, use `OkHttpDebugCaptureMode.DUAL` so the desktop groups `plain` and `wire` captures under one request.
 
 For a USB device, keep the SDK URL as `ws://127.0.0.1:19090/session` and run:
 

@@ -19,7 +19,17 @@ fun OkHttpClient.Builder.debugWithOkHttpDebugKit(
         return this
     }
     val manager = OkHttpDebugKit.currentConnectionManager() ?: OkHttpDebugKit.install(context, config)
-    return addInterceptor(OkHttpDebugInterceptor(config, manager))
-        .eventListenerFactory(OkHttpDebugEventListener.factory(delegateEventListenerFactory))
+    when (config.captureMode) {
+        OkHttpDebugCaptureMode.APPLICATION -> {
+            interceptors().add(0, OkHttpDebugInterceptor(config, manager, STAGE_PLAIN))
+        }
+        OkHttpDebugCaptureMode.WIRE -> {
+            addInterceptor(OkHttpDebugInterceptor(config, manager, STAGE_WIRE))
+        }
+        OkHttpDebugCaptureMode.DUAL -> {
+            interceptors().add(0, OkHttpDebugInterceptor(config, manager, STAGE_PLAIN))
+            addInterceptor(OkHttpDebugInterceptor(config, manager, STAGE_WIRE))
+        }
+    }
+    return eventListenerFactory(OkHttpDebugEventListener.factory(delegateEventListenerFactory))
 }
-

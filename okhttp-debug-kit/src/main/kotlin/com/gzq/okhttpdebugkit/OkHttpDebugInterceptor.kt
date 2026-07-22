@@ -11,7 +11,6 @@ import com.gzq.okhttpdebugkit.protocol.DebugHttpResponse
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
-import java.util.UUID
 
 /**
  * Application interceptor that captures request/response metadata and safe text bodies.
@@ -19,6 +18,7 @@ import java.util.UUID
 class OkHttpDebugInterceptor @JvmOverloads constructor(
     private val config: OkHttpDebugConfig = OkHttpDebugKit.currentConfig(),
     private val connectionManager: DebugConnectionManager? = OkHttpDebugKit.currentConnectionManager(),
+    private val stage: String = STAGE_PLAIN,
 ) : Interceptor {
     @Throws(IOException::class)
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -27,7 +27,7 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
         }
 
         val request = chain.request()
-        val id = UUID.randomUUID().toString()
+        val identity = CaptureCallIds.next(chain.call(), stage)
         val startedAtEpochMs = System.currentTimeMillis()
         val startedAtNs = System.nanoTime()
         val requestBody = BodyCapture.captureRequest(request.body, config.maxBodyBytes)
@@ -46,9 +46,11 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
             val durationMs = elapsedMs(startedAtNs)
             emit(
                 DebugCaptureMessage(
-                    id = id,
+                    id = identity.captureId,
                     sessionId = config.sessionId,
                     startedAtEpochMs = startedAtEpochMs,
+                    groupId = identity.groupId,
+                    stage = stage,
                     durationMs = durationMs,
                     request = debugRequest,
                     response = response.toDebugResponse(config),
@@ -61,9 +63,11 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
             val durationMs = elapsedMs(startedAtNs)
             emit(
                 DebugCaptureMessage(
-                    id = id,
+                    id = identity.captureId,
                     sessionId = config.sessionId,
                     startedAtEpochMs = startedAtEpochMs,
+                    groupId = identity.groupId,
+                    stage = stage,
                     durationMs = durationMs,
                     request = debugRequest,
                     error = throwable.toDebugError(config.includeStackTrace),
@@ -104,3 +108,5 @@ private fun Throwable.toDebugError(includeStackTrace: Boolean): DebugError =
 private fun elapsedMs(startedAtNs: Long): Long =
     (System.nanoTime() - startedAtNs) / 1_000_000L
 
+internal const val STAGE_PLAIN = "plain"
+internal const val STAGE_WIRE = "wire"

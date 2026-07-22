@@ -47,6 +47,8 @@ class DebugJsonProtocolTest {
                     id = "capture-1",
                     sessionId = "session-1",
                     startedAtEpochMs = 1_720_000_000_000L,
+                    groupId = "group-1",
+                    stage = "plain",
                     durationMs = 24,
                     request = DebugHttpRequest(
                         method = "POST",
@@ -75,6 +77,8 @@ class DebugJsonProtocolTest {
         assertEquals("capture", json.getString("type"))
         assertEquals(1, json.getInt("protocolVersion"))
         assertEquals("capture-1", json.getString("id"))
+        assertEquals("group-1", json.getString("groupId"))
+        assertEquals("plain", json.getString("stage"))
         assertEquals("session-1", json.getString("sessionId"))
         assertEquals(24L, json.getLong("durationMs"))
 

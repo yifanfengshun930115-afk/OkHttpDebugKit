@@ -19,6 +19,7 @@ class OkHttpDebugConfig private constructor(
     val redactQueryParams: Set<String>,
     val includeStackTrace: Boolean,
     val staticTags: Map<String, String>,
+    val captureMode: OkHttpDebugCaptureMode,
 ) {
     fun newBuilder(): Builder = Builder(this)
 
@@ -36,6 +37,7 @@ class OkHttpDebugConfig private constructor(
         private var redactQueryParams: Set<String> = DEFAULT_REDACT_QUERY_PARAMS
         private var includeStackTrace: Boolean = false
         private var staticTags: Map<String, String> = emptyMap()
+        private var captureMode: OkHttpDebugCaptureMode = OkHttpDebugCaptureMode.APPLICATION
 
         constructor()
 
@@ -53,6 +55,7 @@ class OkHttpDebugConfig private constructor(
             redactQueryParams = config.redactQueryParams
             includeStackTrace = config.includeStackTrace
             staticTags = config.staticTags
+            captureMode = config.captureMode
         }
 
         fun enabled(value: Boolean) = apply { enabled = value }
@@ -107,6 +110,12 @@ class OkHttpDebugConfig private constructor(
 
         fun staticTags(value: Map<String, String>) = apply { staticTags = value.toMap() }
 
+        fun captureMode(value: OkHttpDebugCaptureMode) = apply { captureMode = value }
+
+        fun dualCaptureEnabled(value: Boolean) = apply {
+            captureMode = if (value) OkHttpDebugCaptureMode.DUAL else OkHttpDebugCaptureMode.APPLICATION
+        }
+
         fun build(): OkHttpDebugConfig {
             val normalizedServerUrls = serverUrls.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
             require(normalizedServerUrls.isNotEmpty()) { "serverUrls must not be empty" }
@@ -127,6 +136,7 @@ class OkHttpDebugConfig private constructor(
                 redactQueryParams = redactQueryParams,
                 includeStackTrace = includeStackTrace,
                 staticTags = staticTags,
+                captureMode = captureMode,
             )
         }
     }

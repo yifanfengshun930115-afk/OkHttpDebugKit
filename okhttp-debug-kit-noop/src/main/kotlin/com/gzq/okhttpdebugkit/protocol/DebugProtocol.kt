@@ -53,6 +53,8 @@ data class DebugCaptureMessage(
     val sessionId: String,
     val startedAtEpochMs: Long,
     val request: DebugHttpRequest,
+    val groupId: String? = null,
+    val stage: String? = null,
     val durationMs: Long? = null,
     val response: DebugHttpResponse? = null,
     val error: DebugError? = null,
