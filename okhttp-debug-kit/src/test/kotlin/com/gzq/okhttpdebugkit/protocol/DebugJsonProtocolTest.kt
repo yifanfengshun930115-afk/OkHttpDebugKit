@@ -24,8 +24,6 @@ class DebugJsonProtocolTest {
                         sdkInt = 36,
                         deviceTag = "android:abc123",
                     ),
-                    sessionId = "session-1",
-                    token = "demo-token",
                     clientTag = "OneNews debug",
                 ),
             ),
@@ -33,14 +31,14 @@ class DebugJsonProtocolTest {
 
         assertEquals("hello", json.getString("type"))
         assertEquals(1, json.getInt("protocolVersion"))
-        assertEquals("session-1", json.getString("sessionId"))
-        assertEquals("demo-token", json.getString("token"))
         assertEquals("OneNews debug", json.getString("clientTag"))
         assertEquals("com.example.app", json.getJSONObject("app").getString("packageName"))
         assertEquals(123L, json.getJSONObject("app").getLong("versionCode"))
         assertTrue(json.getJSONObject("app").getBoolean("debuggable"))
         assertEquals(36, json.getJSONObject("device").getInt("sdkInt"))
         assertEquals("android:abc123", json.getJSONObject("device").getString("deviceTag"))
+        assertFalse(json.has("sessionId"))
+        assertFalse(json.has("token"))
     }
 
     @Test
@@ -49,7 +47,6 @@ class DebugJsonProtocolTest {
             DebugJsonProtocol.captureToJson(
                 DebugCaptureMessage(
                     id = "capture-1",
-                    sessionId = "session-1",
                     startedAtEpochMs = 1_720_000_000_000L,
                     groupId = "group-1",
                     stage = "plain",
@@ -73,7 +70,6 @@ class DebugJsonProtocolTest {
                         contentLength = 11,
                     ),
                     timing = mapOf("dnsDurationMs" to 1L, "protocol" to "h2"),
-                    tags = mapOf("source" to "unit-test"),
                 ),
             ),
         )
@@ -83,8 +79,9 @@ class DebugJsonProtocolTest {
         assertEquals("capture-1", json.getString("id"))
         assertEquals("group-1", json.getString("groupId"))
         assertEquals("plain", json.getString("stage"))
-        assertEquals("session-1", json.getString("sessionId"))
         assertEquals(24L, json.getLong("durationMs"))
+        assertFalse(json.has("sessionId"))
+        assertFalse(json.has("tags"))
 
         val request = json.getJSONObject("request")
         assertEquals("POST", request.getString("method"))
@@ -100,6 +97,5 @@ class DebugJsonProtocolTest {
         assertEquals(200, response.getInt("code"))
         assertEquals("""{"ok":true}""", response.getString("body"))
         assertEquals("h2", json.getJSONObject("timing").getString("protocol"))
-        assertEquals("unit-test", json.getJSONObject("tags").getString("source"))
     }
 }

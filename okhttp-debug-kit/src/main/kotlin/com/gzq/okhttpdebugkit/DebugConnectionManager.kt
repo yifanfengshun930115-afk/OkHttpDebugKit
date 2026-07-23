@@ -9,7 +9,6 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.io.Closeable
-import java.net.URLEncoder
 import java.util.ArrayDeque
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -166,7 +165,7 @@ class DebugConnectionManager @JvmOverloads constructor(
             }
             connecting = true
             Request.Builder()
-                .url(endpointWithToken(nextEndpointLocked(), config.token))
+                .url(nextEndpointLocked())
                 .build()
         }
         client.newWebSocket(request, Listener())
@@ -258,14 +257,4 @@ class DebugConnectionManager @JvmOverloads constructor(
             handleDisconnected(webSocket)
         }
     }
-}
-
-private fun endpointWithToken(serverUrl: String, token: String?): String {
-    val nonBlankToken = token?.takeIf { it.isNotBlank() } ?: return serverUrl
-    if (serverUrl.contains("?token=") || serverUrl.contains("&token=")) {
-        return serverUrl
-    }
-    val separator = if (serverUrl.contains("?")) "&" else "?"
-    val encodedToken = URLEncoder.encode(nonBlankToken, "UTF-8")
-    return "$serverUrl${separator}token=$encodedToken"
 }

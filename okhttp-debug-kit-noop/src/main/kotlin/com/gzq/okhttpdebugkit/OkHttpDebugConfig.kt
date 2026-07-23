@@ -9,9 +9,7 @@ package com.gzq.okhttpdebugkit
  * @property enabled 是否启用采集。noop 产物即使设置为 `true` 也不会真正采集数据。
  * @property serverUrl 单个桌面端 WebSocket 地址。保留该字段是为了兼容旧接入代码。
  * @property serverUrls 可轮询尝试的桌面端 WebSocket 地址列表。
- * @property token 连接桌面端时附加的可选鉴权 token，空字符串会被当作未设置。
  * @property clientTag 当前客户端在桌面端展示和筛选时使用的稳定标签，noop 产物不会发送。
- * @property sessionId 当前 App 会话 ID，用于保持和 debug 产物一致的配置结构。
  * @property maxBodyBytes 单个请求体或响应体最多采集的字节数，noop 产物不会读取 body。
  * @property queueCapacity WebSocket 未连接时最多缓存的消息数，noop 产物不会缓存消息。
  * @property reconnectInitialDelayMs 断线后第一次重连等待时间，单位毫秒。
@@ -19,16 +17,13 @@ package com.gzq.okhttpdebugkit
  * @property redactHeaders 需要脱敏的 HTTP Header 名称集合，大小写不敏感。
  * @property redactQueryParams 需要脱敏的 URL query 参数名集合，大小写不敏感。
  * @property includeStackTrace 请求失败时是否发送异常堆栈，noop 产物不会发送。
- * @property staticTags 附加到采集消息上的固定标签，noop 产物不会发送。
  * @property captureMode OkHttp 拦截层采集模式，noop 产物仅保留该配置值。
  */
 class OkHttpDebugConfig private constructor(
     val enabled: Boolean,
     val serverUrl: String,
     val serverUrls: List<String>,
-    val token: String?,
     val clientTag: String?,
-    val sessionId: String,
     val maxBodyBytes: Long,
     val queueCapacity: Int,
     val reconnectInitialDelayMs: Long,
@@ -36,7 +31,6 @@ class OkHttpDebugConfig private constructor(
     val redactHeaders: Set<String>,
     val redactQueryParams: Set<String>,
     val includeStackTrace: Boolean,
-    val staticTags: Map<String, String>,
     val captureMode: OkHttpDebugCaptureMode,
 ) {
     /**
@@ -53,9 +47,7 @@ class OkHttpDebugConfig private constructor(
         private var enabled: Boolean = false
         private var serverUrl: String = DEFAULT_SERVER_URL
         private var serverUrls: List<String> = listOf(DEFAULT_SERVER_URL)
-        private var token: String? = null
         private var clientTag: String? = null
-        private var sessionId: String = java.util.UUID.randomUUID().toString()
         private var maxBodyBytes: Long = DEFAULT_MAX_BODY_BYTES
         private var queueCapacity: Int = DEFAULT_QUEUE_CAPACITY
         private var reconnectInitialDelayMs: Long = DEFAULT_RECONNECT_INITIAL_DELAY_MS
@@ -63,7 +55,6 @@ class OkHttpDebugConfig private constructor(
         private var redactHeaders: Set<String> = DEFAULT_REDACT_HEADERS
         private var redactQueryParams: Set<String> = DEFAULT_REDACT_QUERY_PARAMS
         private var includeStackTrace: Boolean = false
-        private var staticTags: Map<String, String> = emptyMap()
         private var captureMode: OkHttpDebugCaptureMode = OkHttpDebugCaptureMode.APPLICATION
 
         /**
@@ -75,9 +66,7 @@ class OkHttpDebugConfig private constructor(
             enabled = config.enabled
             serverUrl = config.serverUrl
             serverUrls = config.serverUrls
-            token = config.token
             clientTag = config.clientTag
-            sessionId = config.sessionId
             maxBodyBytes = config.maxBodyBytes
             queueCapacity = config.queueCapacity
             reconnectInitialDelayMs = config.reconnectInitialDelayMs
@@ -85,7 +74,6 @@ class OkHttpDebugConfig private constructor(
             redactHeaders = config.redactHeaders
             redactQueryParams = config.redactQueryParams
             includeStackTrace = config.includeStackTrace
-            staticTags = config.staticTags
             captureMode = config.captureMode
         }
 
@@ -118,26 +106,11 @@ class OkHttpDebugConfig private constructor(
         }
 
         /**
-         * 设置连接桌面端时携带的鉴权 token。
-         *
-         * 传入 `null` 或空白字符串表示不携带 token。
-         */
-        fun token(value: String?) = apply { token = value?.takeIf { it.isNotBlank() } }
-
-        /**
          * 设置桌面端展示和筛选客户端来源时使用的稳定标签。
          *
          * noop 产物不会发送该值，该方法只用于保持 API 兼容。
          */
         fun clientTag(value: String?) = apply { clientTag = value?.trim()?.takeIf { it.isNotEmpty() } }
-
-        /**
-         * 设置当前 App 运行会话 ID。
-         */
-        fun sessionId(value: String) = apply {
-            require(value.isNotBlank()) { "sessionId must not be blank" }
-            sessionId = value
-        }
 
         /**
          * 设置请求体和响应体的最大采集字节数。
@@ -203,13 +176,6 @@ class OkHttpDebugConfig private constructor(
         fun includeStackTrace(value: Boolean) = apply { includeStackTrace = value }
 
         /**
-         * 设置发送到桌面端的固定标签。
-         *
-         * noop 产物不会发送标签，该值只用于保持 API 兼容。
-         */
-        fun staticTags(value: Map<String, String>) = apply { staticTags = value.toMap() }
-
-        /**
          * 设置 OkHttp 拦截层采集模式。
          */
         fun captureMode(value: OkHttpDebugCaptureMode) = apply { captureMode = value }
@@ -239,9 +205,7 @@ class OkHttpDebugConfig private constructor(
                 enabled = enabled,
                 serverUrl = normalizedServerUrls.first(),
                 serverUrls = normalizedServerUrls,
-                token = token,
                 clientTag = clientTag,
-                sessionId = sessionId,
                 maxBodyBytes = maxBodyBytes,
                 queueCapacity = queueCapacity,
                 reconnectInitialDelayMs = reconnectInitialDelayMs,
@@ -249,7 +213,6 @@ class OkHttpDebugConfig private constructor(
                 redactHeaders = redactHeaders,
                 redactQueryParams = redactQueryParams,
                 includeStackTrace = includeStackTrace,
-                staticTags = staticTags,
                 captureMode = captureMode,
             )
         }

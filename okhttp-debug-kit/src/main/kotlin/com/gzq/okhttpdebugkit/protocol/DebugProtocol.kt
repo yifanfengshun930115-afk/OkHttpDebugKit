@@ -17,8 +17,6 @@ data class DebugDeviceInfo(
 data class DebugHelloMessage(
     val app: DebugAppInfo,
     val device: DebugDeviceInfo,
-    val sessionId: String,
-    val token: String? = null,
     val clientTag: String? = null,
     val protocolVersion: Int = 1,
     val type: String = "hello",
@@ -52,7 +50,6 @@ data class DebugError(
 
 data class DebugCaptureMessage(
     val id: String,
-    val sessionId: String,
     val startedAtEpochMs: Long,
     val request: DebugHttpRequest,
     val groupId: String,
@@ -61,7 +58,6 @@ data class DebugCaptureMessage(
     val response: DebugHttpResponse? = null,
     val error: DebugError? = null,
     val timing: Map<String, Any?>? = null,
-    val tags: Map<String, String>? = null,
     val protocolVersion: Int = 1,
     val type: String = "capture",
 )

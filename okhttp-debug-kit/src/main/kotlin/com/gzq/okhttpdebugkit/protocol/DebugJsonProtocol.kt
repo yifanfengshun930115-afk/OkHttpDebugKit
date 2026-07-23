@@ -19,8 +19,6 @@ object DebugJsonProtocol {
                 .putOptional("model", message.device.model)
                 .putOptional("sdkInt", message.device.sdkInt)
                 .putOptional("deviceTag", message.device.deviceTag))
-            .put("sessionId", message.sessionId)
-            .putOptional("token", message.token)
             .putOptional("clientTag", message.clientTag)
             .toString()
     }
@@ -31,7 +29,6 @@ object DebugJsonProtocol {
             .put("type", message.type)
             .put("protocolVersion", message.protocolVersion)
             .put("id", message.id)
-            .put("sessionId", message.sessionId)
             .put("startedAtEpochMs", message.startedAtEpochMs)
             .put("groupId", message.groupId)
             .put("stage", message.stage)
@@ -40,7 +37,6 @@ object DebugJsonProtocol {
             .putOptional("response", message.response?.toJson())
             .putOptional("error", message.error?.toJson())
             .putOptional("timing", message.timing?.toJsonObject())
-            .putOptional("tags", message.tags?.toTagsJsonObject())
             .toString()
     }
 }
@@ -86,14 +82,6 @@ private fun Map<String, Any?>.toJsonObject(): JSONObject {
             is Iterable<*> -> json.put(key, value.toJsonArray())
             else -> json.put(key, value.toString())
         }
-    }
-    return json
-}
-
-private fun Map<String, String>.toTagsJsonObject(): JSONObject {
-    val json = JSONObject()
-    entries.sortedBy { it.key }.forEach { (key, value) ->
-        json.put(key, value)
     }
     return json
 }

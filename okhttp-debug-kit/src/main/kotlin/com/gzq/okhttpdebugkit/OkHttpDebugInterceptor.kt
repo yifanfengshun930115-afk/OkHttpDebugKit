@@ -57,7 +57,6 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
             emit(
                 DebugCaptureMessage(
                     id = identity.captureId,
-                    sessionId = config.sessionId,
                     startedAtEpochMs = startedAtEpochMs,
                     groupId = identity.groupId,
                     stage = stage,
@@ -65,7 +64,6 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
                     request = debugRequest,
                     response = response.toDebugResponse(config),
                     timing = OkHttpDebugEventListener.snapshot(chain.call()),
-                    tags = config.staticTags.takeIf { it.isNotEmpty() },
                 ),
             )
             return response
@@ -74,7 +72,6 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
             emit(
                 DebugCaptureMessage(
                     id = identity.captureId,
-                    sessionId = config.sessionId,
                     startedAtEpochMs = startedAtEpochMs,
                     groupId = identity.groupId,
                     stage = stage,
@@ -82,7 +79,6 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
                     request = debugRequest,
                     error = throwable.toDebugError(config.includeStackTrace),
                     timing = OkHttpDebugEventListener.snapshot(chain.call()),
-                    tags = config.staticTags.takeIf { it.isNotEmpty() },
                 ),
             )
             throw throwable
