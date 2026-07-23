@@ -14,7 +14,13 @@ import java.util.Collections
 import java.util.WeakHashMap
 
 /**
- * EventListener that records per-call timing markers for captures.
+ * 用于记录 OkHttp 单次请求耗时明细的事件监听器。
+ *
+ * 业务侧通常不需要直接创建该类，优先通过 [debugWithOkHttpDebugKit] 或 [factory] 安装。
+ * 如果业务本身已经设置了 [EventListener]，可以通过 [factory] 的 delegate 参数继续保留原有监听逻辑。
+ *
+ * @param call 当前 OkHttp 请求。传入后监听器会把计时状态和该请求绑定。
+ * @param delegate 业务已有的事件监听器。非空时，所有事件都会继续转发给它。
  */
 class OkHttpDebugEventListener @JvmOverloads constructor(
     private val call: Call? = null,
@@ -134,6 +140,12 @@ class OkHttpDebugEventListener @JvmOverloads constructor(
     }
 
     companion object {
+        /**
+         * 创建 OkHttp 可直接使用的 [EventListener.Factory]。
+         *
+         * @param delegateFactory 业务已有的事件监听工厂。非空时，每个请求都会先创建业务监听器，
+         * 再由 OkHttpDebugKit 包装并转发事件。
+         */
         @JvmStatic
         @JvmOverloads
         fun factory(delegateFactory: EventListener.Factory? = null): EventListener.Factory =
@@ -144,6 +156,14 @@ class OkHttpDebugEventListener @JvmOverloads constructor(
                 )
             }
 
+        /**
+         * 获取指定请求当前已记录的计时快照。
+         *
+         * 返回值会被采集拦截器附加到请求记录中。业务侧一般不需要主动调用，除非需要自行读取
+         * dns、连接、TLS、请求体、响应体等阶段耗时。
+         *
+         * @return 没有计时数据时返回 `null`。
+         */
         @JvmStatic
         fun snapshot(call: Call): Map<String, Any?>? =
             TimingRegistry.snapshot(call).takeIf { it.isNotEmpty() }
@@ -206,4 +226,3 @@ private class TimingState {
         output[name] = (end - start) / 1_000_000L
     }
 }
-

@@ -13,7 +13,17 @@ import okhttp3.Response
 import java.io.IOException
 
 /**
- * Application interceptor that captures request/response metadata and safe text bodies.
+ * OkHttp 请求采集拦截器。
+ *
+ * 业务侧通常不需要直接创建该类，优先使用 [debugWithOkHttpDebugKit] 自动安装。只有在项目需要完全
+ * 手动控制拦截器顺序时，才建议直接添加该拦截器。
+ *
+ * 拦截器会采集请求/响应元信息、脱敏后的 Header 和 URL，以及安全可读取的文本 body。二进制 body、
+ * one-shot body、duplex body 不会被强行读取，避免改变业务请求行为。
+ *
+ * @param config 本拦截器使用的采集配置。
+ * @param connectionManager 采集消息发送通道。传 `null` 时会使用 [OkHttpDebugKit.currentConnectionManager]。
+ * @param stage 当前采集视角。业务侧一般不需要传该参数，由 [debugWithOkHttpDebugKit] 按模式设置。
  */
 class OkHttpDebugInterceptor @JvmOverloads constructor(
     private val config: OkHttpDebugConfig = OkHttpDebugKit.currentConfig(),

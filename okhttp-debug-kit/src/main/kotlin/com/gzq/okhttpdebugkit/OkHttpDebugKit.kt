@@ -9,7 +9,11 @@ import com.gzq.okhttpdebugkit.protocol.DebugDeviceInfo
 import com.gzq.okhttpdebugkit.protocol.DebugHelloMessage
 
 /**
- * Entry point for installing the debug-only OkHttp capture transport.
+ * OkHttpDebugKit 的全局安装入口。
+ *
+ * 业务侧通常在 Application 初始化阶段调用 [install]，再通过
+ * [debugWithOkHttpDebugKit] 给具体的 [okhttp3.OkHttpClient.Builder] 安装采集拦截器。
+ * 重复安装会关闭旧连接并使用新配置重新建立桌面端连接。
  */
 object OkHttpDebugKit {
     @Volatile
@@ -18,6 +22,13 @@ object OkHttpDebugKit {
     @Volatile
     private var config: OkHttpDebugConfig = OkHttpDebugConfig.defaults()
 
+    /**
+     * 安装 OkHttpDebugKit，并在配置启用时连接桌面端采集服务。
+     *
+     * @param context Android 上下文。方法内部会使用 applicationContext，避免持有 Activity。
+     * @param config 本次安装使用的采集配置。
+     * @return 当前安装产生的连接管理器，可用于查看连接状态或主动关闭连接。
+     */
     @JvmStatic
     @JvmOverloads
     fun install(
@@ -37,6 +48,12 @@ object OkHttpDebugKit {
         return newManager
     }
 
+    /**
+     * 卸载当前 OkHttpDebugKit 实例并关闭 WebSocket 连接。
+     *
+     * 已经创建出来的 OkHttpClient 不会自动移除拦截器；业务侧如果需要彻底停止采集，
+     * 应同时停止继续复用旧 client 或重新创建未安装调试拦截器的 client。
+     */
     @JvmStatic
     fun uninstall() {
         val oldManager = manager
@@ -44,9 +61,19 @@ object OkHttpDebugKit {
         oldManager?.shutdown()
     }
 
+    /**
+     * 返回当前连接管理器。
+     *
+     * 如果尚未调用 [install]，或已调用 [uninstall]，则返回 `null`。
+     */
     @JvmStatic
     fun currentConnectionManager(): DebugConnectionManager? = manager
 
+    /**
+     * 返回当前全局配置。
+     *
+     * 未安装前返回默认配置；调用 [install] 后返回最近一次安装传入的配置。
+     */
     @JvmStatic
     fun currentConfig(): OkHttpDebugConfig = config
 
@@ -92,4 +119,3 @@ private fun android.content.pm.PackageInfo.versionCodeCompat(): Long =
     } else {
         versionCode.toLong()
     }
-

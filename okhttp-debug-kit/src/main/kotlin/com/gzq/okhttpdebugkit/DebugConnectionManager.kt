@@ -17,10 +17,14 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.min
 
 /**
- * Owns the WebSocket session used to push OkHttp captures to the desktop collector.
+ * 负责维护和桌面端采集服务之间的 WebSocket 连接。
  *
- * Failures are deliberately swallowed after queueing/drop accounting so network debugging never
- * changes app behavior.
+ * 业务侧通常通过 [OkHttpDebugKit.install] 获取该对象，用于查看连接状态、队列积压数量或主动关闭连接。
+ * 连接失败、发送失败等异常会在内部吞掉，并通过离线队列或丢弃计数处理，避免调试能力改变业务网络行为。
+ *
+ * @param config 连接和发送使用的配置。
+ * @param helloMessage WebSocket 建立成功后优先发送的握手消息。
+ * @param client 创建 WebSocket 使用的 OkHttpClient，通常使用默认值即可。
  */
 class DebugConnectionManager @JvmOverloads constructor(
     private val config: OkHttpDebugConfig,
@@ -51,10 +55,20 @@ class DebugConnectionManager @JvmOverloads constructor(
     @Volatile
     private var endpointIndex = 0
 
+    /**
+     * 因离线队列容量不足而丢弃的消息数量。
+     *
+     * 该值只递增不自动清零，可用于判断桌面端长时间未连接时是否发生了采集数据丢弃。
+     */
     @Volatile
     var droppedMessageCount: Long = 0
         private set
 
+    /**
+     * 启动 WebSocket 连接。
+     *
+     * [OkHttpDebugKit.install] 会在配置启用时自动调用该方法，业务侧一般不需要重复调用。
+     */
     fun start() {
         if (!config.enabled) return
         synchronized(lock) {
@@ -64,14 +78,29 @@ class DebugConnectionManager @JvmOverloads constructor(
         executeSafely { connectIfNeeded() }
     }
 
+    /**
+     * 发送一条已经结构化的请求采集消息。
+     *
+     * 如果当前未连接，会按 [OkHttpDebugConfig.queueCapacity] 进入离线队列。
+     */
     fun sendCapture(message: DebugCaptureMessage) {
         send(DebugJsonProtocol.captureToJson(message))
     }
 
+    /**
+     * 发送一条桌面端握手消息。
+     *
+     * 通常由连接管理器在 WebSocket 建立成功后自动发送，业务侧一般不需要主动调用。
+     */
     fun sendHello(message: DebugHelloMessage) {
         send(DebugJsonProtocol.helloToJson(message))
     }
 
+    /**
+     * 发送一段原始 JSON 文本到桌面端。
+     *
+     * 该方法主要提供给内部协议发送使用。业务侧如果直接调用，需要保证 JSON 符合桌面端协议。
+     */
     fun send(rawJson: String) {
         if (!config.enabled || closed) return
         var shouldConnect = false
@@ -91,14 +120,30 @@ class DebugConnectionManager @JvmOverloads constructor(
         }
     }
 
+    /**
+     * 返回当前离线队列中等待发送的消息数量。
+     */
     fun queuedMessageCount(): Int = synchronized(lock) { queue.size }
 
+    /**
+     * 返回当前是否已经建立 WebSocket 连接。
+     */
     fun isConnected(): Boolean = socket != null
 
+    /**
+     * 关闭连接管理器。
+     *
+     * 等价于调用 [shutdown]。
+     */
     override fun close() {
         shutdown()
     }
 
+    /**
+     * 关闭 WebSocket、清空离线队列并停止后台线程。
+     *
+     * 调用后该对象不可再次启动；如需重新采集，请重新调用 [OkHttpDebugKit.install]。
+     */
     fun shutdown() {
         val socketToClose = synchronized(lock) {
             if (closed) return
