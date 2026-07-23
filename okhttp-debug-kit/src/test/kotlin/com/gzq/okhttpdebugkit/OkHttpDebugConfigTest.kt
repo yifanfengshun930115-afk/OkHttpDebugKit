@@ -33,4 +33,13 @@ class OkHttpDebugConfigTest {
             config.serverUrls,
         )
     }
+
+    @Test
+    fun clientTagIsTrimmedWhenConfigured() {
+        val config = OkHttpDebugConfig.builder()
+            .clientTag("  OneNews debug  ")
+            .build()
+
+        assertEquals("OneNews debug", config.clientTag)
+    }
 }

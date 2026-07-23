@@ -3,10 +3,12 @@ package com.gzq.okhttpdebugkit
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.Build
+import android.provider.Settings
 import com.gzq.okhttpdebugkit.protocol.DebugAppInfo
 import com.gzq.okhttpdebugkit.protocol.DebugCaptureMessage
 import com.gzq.okhttpdebugkit.protocol.DebugDeviceInfo
 import com.gzq.okhttpdebugkit.protocol.DebugHelloMessage
+import java.security.MessageDigest
 
 /**
  * OkHttpDebugKit 的全局安装入口。
@@ -105,9 +107,11 @@ object OkHttpDebugKit {
                 manufacturer = Build.MANUFACTURER,
                 model = Build.MODEL,
                 sdkInt = Build.VERSION.SDK_INT,
+                deviceTag = context.safeDeviceTag(),
             ),
             sessionId = config.sessionId,
             token = config.token,
+            clientTag = config.clientTag ?: config.staticTags.clientTagFromStaticTags(),
         )
     }
 }
@@ -119,3 +123,30 @@ private fun android.content.pm.PackageInfo.versionCodeCompat(): Long =
     } else {
         versionCode.toLong()
     }
+
+private fun Context.safeDeviceTag(): String? {
+    val androidId = runCatching {
+        Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+    return androidId?.let { "android:${it.sha256ShortHex()}" }
+}
+
+private fun String.sha256ShortHex(): String {
+    val digest = MessageDigest.getInstance("SHA-256").digest(toByteArray(Charsets.UTF_8))
+    return digest.take(6).joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+}
+
+private fun Map<String, String>.clientTagFromStaticTags(): String? {
+    val preferredKeys = listOf("clientTag", "staticTag", "source", "app", "flavor", "channel")
+    for (key in preferredKeys) {
+        val value = entries
+            .firstOrNull { it.key.equals(key, ignoreCase = true) }
+            ?.value
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        if (value != null) {
+            return value
+        }
+    }
+    return null
+}

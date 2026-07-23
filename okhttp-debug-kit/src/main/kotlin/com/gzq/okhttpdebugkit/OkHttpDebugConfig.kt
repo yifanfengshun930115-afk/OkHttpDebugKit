@@ -11,6 +11,7 @@ package com.gzq.okhttpdebugkit
  * @property serverUrl 单个桌面端 WebSocket 地址。保留该字段是为了兼容旧接入代码。
  * @property serverUrls 可轮询尝试的桌面端 WebSocket 地址列表，适合桌面端端口自动探测场景。
  * @property token 连接桌面端时附加的可选鉴权 token，空字符串会被当作未设置。
+ * @property clientTag 当前客户端在桌面端展示和筛选时使用的稳定标签。
  * @property sessionId 当前 App 会话 ID，用于把同一次运行产生的请求归组。
  * @property maxBodyBytes 单个请求体或响应体最多采集的字节数，超过后会截断。
  * @property queueCapacity WebSocket 未连接时最多缓存的消息数，超过后丢弃最旧消息。
@@ -27,6 +28,7 @@ class OkHttpDebugConfig private constructor(
     val serverUrl: String,
     val serverUrls: List<String>,
     val token: String?,
+    val clientTag: String?,
     val sessionId: String,
     val maxBodyBytes: Long,
     val queueCapacity: Int,
@@ -53,6 +55,7 @@ class OkHttpDebugConfig private constructor(
         private var serverUrl: String = DEFAULT_SERVER_URL
         private var serverUrls: List<String> = listOf(DEFAULT_SERVER_URL)
         private var token: String? = null
+        private var clientTag: String? = null
         private var sessionId: String = java.util.UUID.randomUUID().toString()
         private var maxBodyBytes: Long = DEFAULT_MAX_BODY_BYTES
         private var queueCapacity: Int = DEFAULT_QUEUE_CAPACITY
@@ -74,6 +77,7 @@ class OkHttpDebugConfig private constructor(
             serverUrl = config.serverUrl
             serverUrls = config.serverUrls
             token = config.token
+            clientTag = config.clientTag
             sessionId = config.sessionId
             maxBodyBytes = config.maxBodyBytes
             queueCapacity = config.queueCapacity
@@ -120,6 +124,14 @@ class OkHttpDebugConfig private constructor(
          * 传入 `null` 或空白字符串表示不携带 token。
          */
         fun token(value: String?) = apply { token = value?.takeIf { it.isNotBlank() } }
+
+        /**
+         * 设置桌面端展示和筛选客户端来源时使用的稳定标签。
+         *
+         * 未显式设置时，握手消息会从 [staticTags] 中自动挑选 `clientTag`、`staticTag`、
+         * `source`、`flavor` 或 `channel` 作为展示标签。
+         */
+        fun clientTag(value: String?) = apply { clientTag = value?.trim()?.takeIf { it.isNotEmpty() } }
 
         /**
          * 设置当前 App 运行会话 ID。
@@ -232,6 +244,7 @@ class OkHttpDebugConfig private constructor(
                 serverUrl = normalizedServerUrls.first(),
                 serverUrls = normalizedServerUrls,
                 token = token,
+                clientTag = clientTag,
                 sessionId = sessionId,
                 maxBodyBytes = maxBodyBytes,
                 queueCapacity = queueCapacity,

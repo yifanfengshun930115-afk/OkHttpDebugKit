@@ -17,9 +17,11 @@ object DebugJsonProtocol {
             .put("device", JSONObject()
                 .putOptional("manufacturer", message.device.manufacturer)
                 .putOptional("model", message.device.model)
-                .putOptional("sdkInt", message.device.sdkInt))
+                .putOptional("sdkInt", message.device.sdkInt)
+                .putOptional("deviceTag", message.device.deviceTag))
             .put("sessionId", message.sessionId)
             .putOptional("token", message.token)
+            .putOptional("clientTag", message.clientTag)
             .toString()
     }
 

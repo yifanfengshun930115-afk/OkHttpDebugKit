@@ -22,9 +22,11 @@ class DebugJsonProtocolTest {
                         manufacturer = "Google",
                         model = "Pixel",
                         sdkInt = 36,
+                        deviceTag = "android:abc123",
                     ),
                     sessionId = "session-1",
                     token = "demo-token",
+                    clientTag = "OneNews debug",
                 ),
             ),
         )
@@ -33,10 +35,12 @@ class DebugJsonProtocolTest {
         assertEquals(1, json.getInt("protocolVersion"))
         assertEquals("session-1", json.getString("sessionId"))
         assertEquals("demo-token", json.getString("token"))
+        assertEquals("OneNews debug", json.getString("clientTag"))
         assertEquals("com.example.app", json.getJSONObject("app").getString("packageName"))
         assertEquals(123L, json.getJSONObject("app").getLong("versionCode"))
         assertTrue(json.getJSONObject("app").getBoolean("debuggable"))
         assertEquals(36, json.getJSONObject("device").getInt("sdkInt"))
+        assertEquals("android:abc123", json.getJSONObject("device").getString("deviceTag"))
     }
 
     @Test

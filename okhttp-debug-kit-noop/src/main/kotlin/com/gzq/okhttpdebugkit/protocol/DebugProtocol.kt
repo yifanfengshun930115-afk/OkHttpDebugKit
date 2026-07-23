@@ -11,6 +11,7 @@ data class DebugDeviceInfo(
     val manufacturer: String? = null,
     val model: String? = null,
     val sdkInt: Int? = null,
+    val deviceTag: String? = null,
 )
 
 data class DebugHelloMessage(
@@ -18,6 +19,7 @@ data class DebugHelloMessage(
     val device: DebugDeviceInfo,
     val sessionId: String,
     val token: String? = null,
+    val clientTag: String? = null,
     val protocolVersion: Int = 1,
     val type: String = "hello",
 )
