@@ -37,8 +37,12 @@ The release no-op artifact exposes the same mode API but still performs no captu
 Build the real debug AAR and release-safe no-op AAR with:
 
 ```bash
-./gradlew :okhttp-debug-kit:assembleRelease :okhttp-debug-kit-noop:assembleRelease
+./gradlew releaseOkHttpDebugKitPackages
 ```
+
+Artifacts are written to `build/okhttp-debug-kit-packages/`. Each module
+produces a plain release AAR, a release AAR with embedded sources, and a
+`sources.jar`.
 
 Use the real artifact for debug/internal diagnostic variants and the no-op
 artifact for production release variants.

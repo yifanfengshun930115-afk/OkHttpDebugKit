@@ -7,16 +7,18 @@ This SDK is intended for debug builds only. Do not put real service tokens in sa
 Build and copy both AARs into the app's `libs/` directory:
 
 ```bash
-./gradlew :okhttp-debug-kit:assembleRelease :okhttp-debug-kit-noop:assembleRelease
+./gradlew releaseOkHttpDebugKitPackages
 ```
+
+The packaged artifacts are under `build/okhttp-debug-kit-packages/`.
 
 Recommended variant dependencies:
 
 ```groovy
 dependencies {
-    debugImplementation(files("$rootDir/libs/okhttp-debug-kit-debug.aar"))
-    logReleaseImplementation(files("$rootDir/libs/okhttp-debug-kit-debug.aar"))
-    releaseImplementation(files("$rootDir/libs/okhttp-debug-kit-noop.aar"))
+    debugImplementation(files("$rootDir/libs/okhttp-debug-kit-1.0-release.aar"))
+    logReleaseImplementation(files("$rootDir/libs/okhttp-debug-kit-1.0-release.aar"))
+    releaseImplementation(files("$rootDir/libs/okhttp-debug-kit-noop-1.0-release.aar"))
 }
 ```
 

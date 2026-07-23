@@ -1,0 +1,171 @@
+// OkHttpDebugKit 双包聚合打包脚本。
+//
+// 目标：
+// 1. okhttp-debug-kit 和 okhttp-debug-kit-noop 始终使用同一份版本号。
+// 2. 一次任务同时生成普通 release AAR、内嵌源码 AAR、sources.jar。
+// 3. 最终可交付产物统一放在根工程 build/okhttp-debug-kit-packages/ 下。
+//
+// ===============================
+// 在根目录下执行：./gradlew releaseOkHttpDebugKitPackages
+// 输出目录：build/okhttp-debug-kit-packages/
+// 输出：
+// 1. okhttp-debug-kit 普通 release aar
+// 2. okhttp-debug-kit 内嵌源码 aar
+// 3. okhttp-debug-kit sources.jar
+// 4. okhttp-debug-kit-noop 普通 release aar
+// 5. okhttp-debug-kit-noop 内嵌源码 aar
+// 6. okhttp-debug-kit-noop sources.jar
+// ===============================
+
+// 双包统一版本。升级 OkHttpDebugKit 时只改这里，debug/noop 会一起使用同一版本。
+ext.okHttpDebugKitVersionName = "1.0"
+ext.okHttpDebugKitVersionCode = 1
+
+// 需要一起打包的 library 模块。两个模块对业务侧暴露同包名同 API，版本必须保持一致。
+def okHttpDebugKitPackageModules = [
+    ":okhttp-debug-kit",
+    ":okhttp-debug-kit-noop",
+]
+
+// 根工程最终输出目录；根 build/ 已在 .gitignore 中忽略。
+def okHttpDebugKitPackageOutput = rootProject.layout.buildDirectory.dir("okhttp-debug-kit-packages")
+
+// 生成源码 AAR 时使用的临时解包目录，每次任务都会清理重建。
+def okHttpDebugKitPackageTemp = rootProject.layout.buildDirectory.dir("tmp/okhttp-debug-kit-packages")
+
+// 把统一版本注入两个 Android Library 模块的 defaultConfig。
+// 这里集中注入后，模块 build.gradle.kts 中不需要单独声明 versionName/versionCode。
+okHttpDebugKitPackageModules.each { modulePath ->
+    project(modulePath).plugins.withId("com.android.library") {
+        project(modulePath).android {
+            defaultConfig {
+                versionName rootProject.ext.okHttpDebugKitVersionName
+                versionCode rootProject.ext.okHttpDebugKitVersionCode
+            }
+        }
+    }
+}
+
+// 读取 git 信息写入 sources AAR 的 META-INF/library-version.txt。
+// 失败时返回空字符串，后续统一降级成 unknown，避免非 git 环境下打包失败。
+def readGitValue = { List<String> command ->
+    try {
+        return providers.exec {
+            commandLine command
+            ignoreExitValue = true
+        }.standardOutput.asText.get().trim()
+    } catch (Exception ignored) {
+        return ""
+    }
+}
+
+// 复制模块源码到目标目录。当前项目使用 src/main/kotlin；保留 java 分支方便以后迁移。
+def copySources = { Project moduleProject, File targetDir ->
+    if (moduleProject.file("src/main/java").exists()) {
+        copy {
+            from moduleProject.file("src/main/java")
+            into targetDir
+        }
+    }
+    if (moduleProject.file("src/main/kotlin").exists()) {
+        copy {
+            from moduleProject.file("src/main/kotlin")
+            into targetDir
+        }
+    }
+}
+
+tasks.register("releaseOkHttpDebugKitPackages") {
+    group = "okhttp-debug-kit"
+    description = "同时打出 okhttp-debug-kit 和 okhttp-debug-kit-noop 的 release AAR、源码 AAR、sources.jar。"
+    dependsOn okHttpDebugKitPackageModules.collect { modulePath -> "${modulePath}:assembleRelease" }
+
+    doLast {
+        // doLast 中再解析目录和版本，确保 assembleRelease 结束后读取到的是最新产物。
+        def outputDir = okHttpDebugKitPackageOutput.get().asFile
+        def tempRootDir = okHttpDebugKitPackageTemp.get().asFile
+        def versionName = rootProject.ext.okHttpDebugKitVersionName
+        def versionCode = rootProject.ext.okHttpDebugKitVersionCode
+        def gitRevision = readGitValue(["git", "rev-list", "--count", "HEAD"]) ?: "unknown"
+        def gitCommit = readGitValue(["git", "rev-parse", "--short=12", "HEAD"]) ?: "unknown"
+
+        delete outputDir
+        delete tempRootDir
+        outputDir.mkdirs()
+        tempRootDir.mkdirs()
+
+        okHttpDebugKitPackageModules.each { modulePath ->
+            // 每个模块独立输出到 build/okhttp-debug-kit-packages/<moduleName>/，避免文件名混在一起。
+            def moduleProject = project(modulePath)
+            def moduleName = moduleProject.name
+            def moduleOutputDir = new File(outputDir, moduleName)
+            moduleOutputDir.mkdirs()
+
+            // Android Gradle Plugin 生成的原始 release AAR。
+            def baseAar = moduleProject.layout.buildDirectory
+                .file("outputs/aar/${moduleName}-release.aar")
+                .get()
+                .asFile
+            if (!baseAar.exists()) {
+                throw new GradleException("找不到 ${moduleName} release aar: ${baseAar.absolutePath}")
+            }
+
+            // 普通 AAR：只改文件名，加上统一版本号，内容保持 AGP 原始 release AAR。
+            def plainAar = new File(moduleOutputDir, "${moduleName}-${versionName}-release.aar")
+            copy {
+                from baseAar
+                into moduleOutputDir
+                rename { plainAar.name }
+            }
+
+            // sources.jar：只包含源码，供 IDE 跳转和调试查看。
+            def sourcesJar = new File(moduleOutputDir, "${moduleName}-${versionName}-sources.jar")
+            ant.zip(destfile: sourcesJar.absolutePath) {
+                if (moduleProject.file("src/main/java").exists()) {
+                    fileset(dir: moduleProject.file("src/main/java"))
+                }
+                if (moduleProject.file("src/main/kotlin").exists()) {
+                    fileset(dir: moduleProject.file("src/main/kotlin"))
+                }
+            }
+
+            // 源码 AAR：先解开普通 AAR，再额外塞入 sources/ 和 META-INF/library-version.txt。
+            def tmpDir = new File(tempRootDir, moduleName)
+            tmpDir.mkdirs()
+            copy {
+                from zipTree(baseAar)
+                into tmpDir
+            }
+
+            def sourcesDir = new File(tmpDir, "sources")
+            sourcesDir.mkdirs()
+            copySources(moduleProject, sourcesDir)
+
+            def metaInf = new File(tmpDir, "META-INF")
+            metaInf.mkdirs()
+            new File(metaInf, "library-version.txt").text = """
+library=$moduleName
+version=$versionName
+versionCode=$versionCode
+revision=$gitRevision
+commit=$gitCommit
+buildTime=${new Date().format("yyyy-MM-dd HH:mm:ss")}
+""".trim()
+
+            // 使用重新组装后的临时目录生成带源码 AAR。
+            def sourceAar = new File(moduleOutputDir, "${moduleName}-${versionName}-release-sources.aar")
+            ant.zip(destfile: sourceAar.absolutePath, basedir: tmpDir.absolutePath)
+        }
+
+        // 打印最终可交付文件列表，方便 CI 日志或本地终端直接定位产物。
+        println ""
+        println "OkHttpDebugKit 双包产物已生成：${outputDir.absolutePath}"
+        println "版本：${versionName} (${versionCode})"
+        fileTree(outputDir) {
+            include "**/*.aar"
+            include "**/*.jar"
+        }.files.sort { file -> file.absolutePath }.each { file ->
+            println file.absolutePath
+        }
+    }
+}
