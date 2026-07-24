@@ -88,6 +88,29 @@ class OkHttpDebugInterceptor @JvmOverloads constructor(
     private fun emit(message: DebugCaptureMessage) {
         val target = connectionManager ?: OkHttpDebugKit.currentConnectionManager()
         target?.sendCapture(message)
+        emitDerived(message, target)
+    }
+
+    private fun emitDerived(message: DebugCaptureMessage, target: DebugConnectionManager?) {
+        if (target == null || config.captureTransformers.isEmpty()) {
+            return
+        }
+        val context = OkHttpDebugCaptureContext(message)
+        config.captureTransformers.forEachIndexed { transformerIndex, transformer ->
+            val derivedCaptures = try {
+                transformer.transform(context)
+            } catch (throwable: Throwable) {
+                target.sendCapture(message.toTransformerError(transformerIndex, throwable, config.includeStackTrace))
+                emptyList()
+            }
+            derivedCaptures.forEachIndexed { derivedIndex, derived ->
+                try {
+                    target.sendCapture(derived.toDebugCapture(message, transformerIndex, derivedIndex))
+                } catch (throwable: Throwable) {
+                    target.sendCapture(message.toTransformerError(transformerIndex, throwable, config.includeStackTrace))
+                }
+            }
+        }
     }
 }
 
@@ -111,8 +134,81 @@ private fun Throwable.toDebugError(includeStackTrace: Boolean): DebugError =
         stack = if (includeStackTrace) stackTraceString() else null,
     )
 
+private fun OkHttpDebugDerivedCapture.toDebugCapture(
+    base: DebugCaptureMessage,
+    transformerIndex: Int,
+    derivedIndex: Int,
+): DebugCaptureMessage {
+    val nextStage = stage.trim()
+    require(!isReservedStage(nextStage)) { "derived stage must not use reserved stage: $nextStage" }
+    return base.copy(
+        id = "${base.id}-${stageIdFragment(nextStage)}-${transformerIndex + 1}-${derivedIndex + 1}",
+        stage = nextStage,
+        request = base.request.withDerivedRequest(this),
+        response = base.response.withDerivedResponse(this),
+        error = null,
+    )
+}
+
+private fun DebugHttpRequest.withDerivedRequest(derived: OkHttpDebugDerivedCapture): DebugHttpRequest {
+    val nextBody = derived.requestBody ?: body
+    return copy(
+        body = nextBody,
+        bodyTruncated = if (derived.requestBody != null) false else bodyTruncated,
+        contentType = derived.requestContentType ?: contentType,
+        contentLength = if (derived.requestBody != null) derived.requestBody.utf8Length() else contentLength,
+    )
+}
+
+private fun DebugHttpResponse?.withDerivedResponse(derived: OkHttpDebugDerivedCapture): DebugHttpResponse? {
+    if (
+        this == null &&
+        derived.responseBody == null &&
+        derived.responseContentType == null &&
+        derived.responseCode == null &&
+        derived.responseMessage == null
+    ) {
+        return null
+    }
+    val nextBody = derived.responseBody ?: this?.body
+    return DebugHttpResponse(
+        code = derived.responseCode ?: this?.code ?: 0,
+        message = derived.responseMessage ?: this?.message.orEmpty(),
+        headers = this?.headers.orEmpty(),
+        body = nextBody,
+        bodyTruncated = if (derived.responseBody != null) false else this?.bodyTruncated,
+        contentType = derived.responseContentType ?: this?.contentType,
+        contentLength = if (derived.responseBody != null) derived.responseBody.utf8Length() else this?.contentLength,
+    )
+}
+
+private fun DebugCaptureMessage.toTransformerError(
+    transformerIndex: Int,
+    throwable: Throwable,
+    includeStackTrace: Boolean,
+): DebugCaptureMessage =
+    copy(
+        id = "$id-$STAGE_TRANSFORMER_ERROR-${transformerIndex + 1}",
+        stage = STAGE_TRANSFORMER_ERROR,
+        response = null,
+        error = throwable.toDebugError(includeStackTrace),
+    )
+
+private fun String?.utf8Length(): Long? = this?.toByteArray(Charsets.UTF_8)?.size?.toLong()
+
+private fun isReservedStage(stage: String): Boolean =
+    stage == STAGE_PLAIN || stage == STAGE_WIRE
+
+private fun stageIdFragment(stage: String): String =
+    stage
+        .lowercase()
+        .replace(Regex("[^a-z0-9_.-]"), "-")
+        .trim('-')
+        .ifEmpty { "custom" }
+
 private fun elapsedMs(startedAtNs: Long): Long =
     (System.nanoTime() - startedAtNs) / 1_000_000L
 
 internal const val STAGE_PLAIN = "plain"
 internal const val STAGE_WIRE = "wire"
+internal const val STAGE_TRANSFORMER_ERROR = "transformer-error"

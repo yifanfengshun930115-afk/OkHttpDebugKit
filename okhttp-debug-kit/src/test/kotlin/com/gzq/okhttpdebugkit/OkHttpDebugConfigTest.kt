@@ -1,5 +1,8 @@
 package com.gzq.okhttpdebugkit
 
+import com.gzq.okhttpdebugkit.protocol.DebugCaptureMessage
+import com.gzq.okhttpdebugkit.protocol.DebugHttpRequest
+import com.gzq.okhttpdebugkit.protocol.DebugHttpResponse
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -41,5 +44,45 @@ class OkHttpDebugConfigTest {
             .build()
 
         assertEquals("OneNews debug", config.clientTag)
+    }
+
+    @Test
+    fun storesBusinessCaptureTransformers() {
+        val transformer = OkHttpDebugCaptureTransformer { context ->
+            listOf(
+                OkHttpDebugDerivedCapture.response(
+                    "article-decoded",
+                    context.responseBody,
+                    "application/json",
+                ),
+            )
+        }
+        val config = OkHttpDebugConfig.builder()
+            .addCaptureTransformer(transformer)
+            .build()
+        val context = OkHttpDebugCaptureContext(
+            DebugCaptureMessage(
+                id = "capture-1",
+                startedAtEpochMs = 1L,
+                groupId = "group-1",
+                stage = "plain",
+                request = DebugHttpRequest(
+                    method = "GET",
+                    url = "https://example.test/article",
+                ),
+                response = DebugHttpResponse(
+                    code = 200,
+                    message = "OK",
+                    body = """{"title":"decoded"}""",
+                    contentType = "application/json",
+                ),
+            ),
+        )
+
+        val derived = config.captureTransformers.single().transform(context).single()
+
+        assertEquals("article-decoded", derived.stage)
+        assertEquals("""{"title":"decoded"}""", derived.responseBody)
+        assertEquals("application/json", derived.responseContentType)
     }
 }

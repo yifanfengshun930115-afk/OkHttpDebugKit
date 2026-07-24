@@ -19,6 +19,7 @@ package com.gzq.okhttpdebugkit
  * @property redactQueryParams 需要脱敏的 URL query 参数名集合，大小写不敏感。
  * @property includeStackTrace 请求失败时是否把异常堆栈发送到桌面端。
  * @property captureMode OkHttp 拦截层采集模式，决定采集明文视角、线上传输视角或两者都采。
+ * @property captureTransformers 业务派生采集扩展点，可额外发送业务解密、模型转换等自定义阶段。
  */
 class OkHttpDebugConfig private constructor(
     val enabled: Boolean,
@@ -33,6 +34,7 @@ class OkHttpDebugConfig private constructor(
     val redactQueryParams: Set<String>,
     val includeStackTrace: Boolean,
     val captureMode: OkHttpDebugCaptureMode,
+    val captureTransformers: List<OkHttpDebugCaptureTransformer>,
 ) {
     /**
      * 基于当前配置创建一个可继续修改的 [Builder]。
@@ -57,6 +59,7 @@ class OkHttpDebugConfig private constructor(
         private var redactQueryParams: Set<String> = DEFAULT_REDACT_QUERY_PARAMS
         private var includeStackTrace: Boolean = false
         private var captureMode: OkHttpDebugCaptureMode = OkHttpDebugCaptureMode.APPLICATION
+        private var captureTransformers: List<OkHttpDebugCaptureTransformer> = emptyList()
 
         /**
          * 创建一份默认配置。
@@ -76,6 +79,7 @@ class OkHttpDebugConfig private constructor(
             redactQueryParams = config.redactQueryParams
             includeStackTrace = config.includeStackTrace
             captureMode = config.captureMode
+            captureTransformers = config.captureTransformers
         }
 
         /**
@@ -180,6 +184,30 @@ class OkHttpDebugConfig private constructor(
         fun captureMode(value: OkHttpDebugCaptureMode) = apply { captureMode = value }
 
         /**
+         * 设置业务派生采集扩展点。
+         *
+         * 扩展点会在插件自动发送 plain/wire 记录后调用。业务侧可以根据 [OkHttpDebugCaptureContext.stage]
+         * 判断当前视角，只在需要的阶段返回额外的 [OkHttpDebugDerivedCapture]。
+         */
+        fun captureTransformers(value: List<OkHttpDebugCaptureTransformer>) = apply {
+            captureTransformers = value
+        }
+
+        /**
+         * 追加一个业务派生采集扩展点。
+         */
+        fun addCaptureTransformer(value: OkHttpDebugCaptureTransformer) = apply {
+            captureTransformers = captureTransformers + value
+        }
+
+        /**
+         * 设置单个业务派生采集扩展点。
+         */
+        fun captureTransformer(value: OkHttpDebugCaptureTransformer?) = apply {
+            captureTransformers = listOfNotNull(value)
+        }
+
+        /**
          * 兼容旧接入方式的双视角开关。
          *
          * 传入 `true` 等价于 [OkHttpDebugCaptureMode.DUAL]，传入 `false` 等价于
@@ -213,6 +241,7 @@ class OkHttpDebugConfig private constructor(
                 redactQueryParams = redactQueryParams,
                 includeStackTrace = includeStackTrace,
                 captureMode = captureMode,
+                captureTransformers = captureTransformers,
             )
         }
     }

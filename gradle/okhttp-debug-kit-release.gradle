@@ -18,8 +18,8 @@
 // ===============================
 
 // 双包统一版本。升级 OkHttpDebugKit 时只改这里，debug/noop 会一起使用同一版本。
-ext.okHttpDebugKitVersionName = "1.0"
-ext.okHttpDebugKitVersionCode = 1
+ext.okHttpDebugKitVersionName = "1.1"
+ext.okHttpDebugKitVersionCode = 2
 
 // 需要一起打包的 library 模块。两个模块对业务侧暴露同包名同 API，版本必须保持一致。
 def okHttpDebugKitPackageModules = [

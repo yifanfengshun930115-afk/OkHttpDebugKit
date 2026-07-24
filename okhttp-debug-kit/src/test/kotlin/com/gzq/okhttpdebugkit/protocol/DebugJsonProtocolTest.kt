@@ -98,4 +98,32 @@ class DebugJsonProtocolTest {
         assertEquals("""{"ok":true}""", response.getString("body"))
         assertEquals("h2", json.getJSONObject("timing").getString("protocol"))
     }
+
+    @Test
+    fun captureJsonAllowsCustomBusinessStage() {
+        val json = JSONObject(
+            DebugJsonProtocol.captureToJson(
+                DebugCaptureMessage(
+                    id = "capture-1-article-decoded",
+                    startedAtEpochMs = 1_720_000_000_000L,
+                    groupId = "group-1",
+                    stage = "article-decoded",
+                    request = DebugHttpRequest(
+                        method = "GET",
+                        url = "https://example.test/article",
+                    ),
+                    response = DebugHttpResponse(
+                        code = 200,
+                        message = "OK",
+                        body = """{"contentHtml":"<p>hello</p>"}""",
+                        bodyTruncated = false,
+                        contentType = "application/json",
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals("article-decoded", json.getString("stage"))
+        assertEquals("""{"contentHtml":"<p>hello</p>"}""", json.getJSONObject("response").getString("body"))
+    }
 }
